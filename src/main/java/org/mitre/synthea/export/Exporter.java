@@ -1,6 +1,5 @@
 package org.mitre.synthea.export;
 
-import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.parser.IParser;
 
 import java.io.File;
@@ -27,6 +26,7 @@ import org.mitre.synthea.input.FixedRecord;
 import org.mitre.synthea.input.FixedRecordGroup;
 import org.mitre.synthea.modules.DeathModule;
 import org.mitre.synthea.world.agents.Person;
+import org.mitre.synthea.world.concepts.Claim;
 import org.mitre.synthea.world.concepts.HealthRecord;
 import org.mitre.synthea.world.concepts.HealthRecord.Encounter;
 import org.mitre.synthea.world.concepts.HealthRecord.Observation;
@@ -482,7 +482,7 @@ public abstract class Exporter {
     Predicate<HealthRecord.Entry> notFutureDated = e -> e.start <= endTime;
 
     for (Encounter encounter : record.encounters) {
-      List<HealthRecord.Entry> claimItems = encounter.claim.items;
+      List<Claim.ClaimEntry> claimItems = encounter.claim.items;
       // keep conditions if still active, regardless of start date
       Predicate<HealthRecord.Entry> conditionActive = c -> record.conditionActive(c.type);
       // or if the condition was active at any point since the cutoff date
@@ -491,7 +491,14 @@ public abstract class Exporter {
       filterEntries(encounter.conditions, claimItems, cutoffDate, endTime, keepCondition);
 
       // allergies are essentially the same as conditions
-      filterEntries(encounter.allergies, claimItems, cutoffDate, endTime, keepCondition);
+      // But we need to redefine all of the predicates, because we are talking about Allergies as
+      // opposed to Entries... You would think that it would work... but generics are hard
+      Predicate<HealthRecord.Allergy> allergyActive = c -> record.allergyActive(c.type);
+      // or if the condition was active at any point since the cutoff date
+      Predicate<HealthRecord.Allergy> allergyActiveWithinCutoff =
+          c -> c.stop != 0L && c.stop > cutoffDate;
+      Predicate<HealthRecord.Allergy> keepAllergy = allergyActive.or(allergyActiveWithinCutoff);
+      filterEntries(encounter.allergies, claimItems, cutoffDate, endTime, keepAllergy);
 
       // some of the "future death" logic could potentially add a future-dated death certificate
       Predicate<Observation> isCauseOfDeath =
@@ -549,7 +556,7 @@ public abstract class Exporter {
    *                     be kept
    */
   private static <E extends HealthRecord.Entry> void filterEntries(List<E> entries,
-      List<HealthRecord.Entry> claimItems, long cutoffDate,
+      List<Claim.ClaimEntry> claimItems, long cutoffDate,
       long endTime, Predicate<E> keepFunction) {
 
     Iterator<E> iterator = entries.iterator();
@@ -563,7 +570,7 @@ public abstract class Exporter {
           && (keepFunction == null || !keepFunction.test(entry))) {
         iterator.remove();
 
-        claimItems.removeIf(ci -> ci == entry);
+        claimItems.removeIf(ci -> ci.entry == entry);
         // compare with == because we only care if it's the actual same object
       }
     }
