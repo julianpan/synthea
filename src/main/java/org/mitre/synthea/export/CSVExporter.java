@@ -291,7 +291,11 @@ public class CSVExporter {
   private void writeCSVHeaders() throws IOException {
     patients.write("Id,BIRTHDATE,DEATHDATE,SSN,DRIVERS,PASSPORT,"
         + "PREFIX,FIRST,LAST,SUFFIX,MAIDEN,MARITAL,RACE,ETHNICITY,GENDER,BIRTHPLACE,"
-        + "ADDRESS,CITY,STATE,COUNTY,ZIP,LAT,LON,HEALTHCARE_EXPENSES,HEALTHCARE_COVERAGE");
+        + "ADDRESS,CITY,STATE,COUNTY,ZIP,FIRST_LANGUAGE,SOCIOECONOMIC_CATEGORY,SOCIOECONOMIC_SCORE,"
+        + "INCOME,INCOME_LEVEL,EDUCATION,EDUCATION_LEVEL,ACTIVE_WEIGHT_MANAGEMENT,BMI_PERCENTILE,"
+        + "SMOKER,ALCOHOLIC,ADHERENCE,"
+        + "LAT,LON,HEALTHCARE_EXPENSES,HEALTHCARE_COVERAGE,"
+        + "FOOD_INSECURITY,SEVERE_HOUSING_COST_BURDEN,UNEMPLOYED,NO_VEHICLE_ACCESS,UNINSURED");
     patients.write(NEWLINE);
     allergies.write("START,STOP,PATIENT,ENCOUNTER,CODE,SYSTEM,DESCRIPTION,TYPE,CATEGORY,"
         + "REACTION1,DESCRIPTION1,SEVERITY1,REACTION2,DESCRIPTION2,SEVERITY2");
@@ -601,11 +605,30 @@ public class CSVExporter {
         Person.CITY,
         Person.STATE,
         "county",
-        Person.ZIP
+        Person.ZIP,
+        Person.FIRST_LANGUAGE,
+        Person.SOCIOECONOMIC_CATEGORY
     }) {
       String value = (String) person.attributes.getOrDefault(attribute, "");
       s.append(',').append(clean(value));
     }
+    // SOCIOECONOMIC_SCORE
+    s.append(',').append(person.attributes.get(person.SOCIOECONOMIC_SCORE));
+    // INCOME
+    s.append(',').append(person.attributes.get(person.INCOME));
+    s.append(',').append(person.attributes.get(person.INCOME_LEVEL));
+    // EDUCATION
+    s.append(',').append(person.attributes.get(person.EDUCATION));
+    s.append(',').append(person.attributes.get(person.EDUCATION_LEVEL));
+    // ACTIVE_WEIGHT_MANAGEMENT
+    s.append(',').append(person.attributes.get(person.ACTIVE_WEIGHT_MANAGEMENT));
+    // BMI_PERCENTILE
+    s.append(',').append(person.attributes.get(person.BMI_PERCENTILE));
+    // Lifestyle
+    s.append(',').append(person.attributes.get(person.SMOKER));
+    s.append(',').append(person.attributes.get(person.ALCOHOLIC));
+    s.append(',').append(person.attributes.get(person.ADHERENCE));
+
     // LAT,LON
     s.append(',').append(person.getY()).append(',').append(person.getX()).append(',');
     // HEALTHCARE_EXPENSES
@@ -616,6 +639,12 @@ public class CSVExporter {
     // s.append(person.attributes.get("most-recent-qaly")).append(',');
     // DALYS
     // s.append(person.attributes.get("most-recent-daly"));
+    // SDOH
+    s.append(',').append(person.attributes.get("FOOD_INSECURITY".toLowerCase()));
+    s.append(',').append(person.attributes.get("SEVERE_HOUSING_COST_BURDEN".toLowerCase()));
+    s.append(',').append(person.attributes.get("UNEMPLOYED".toLowerCase()));
+    s.append(',').append(person.attributes.get("NO_VEHICLE_ACCESS".toLowerCase()));
+    s.append(',').append(person.attributes.get("UNINSURED".toLowerCase()));
 
     s.append(NEWLINE);
     write(s.toString(), patients);
