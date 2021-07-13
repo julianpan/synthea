@@ -34,6 +34,8 @@ public class Demographics implements Comparable<Demographics>, Serializable {
   private RandomCollection<String> ageDistribution;
   public Map<String, Double> gender;
   private RandomCollection<String> genderDistribution;
+  public Map<String, Map<String, Double>> genderAge;
+  private Map<String, RandomCollection<String>> genderAgeDistribution;
   public Map<String, Double> race;
   private RandomCollection<String> raceDistribution;
   public double ethnicity;
@@ -88,6 +90,35 @@ public class Demographics implements Comparable<Demographics>, Serializable {
      * 0.5236151222630206 },
      */
     return genderDistribution.next(random);
+  }
+
+  /**
+   * Pick a gender based on the population distribution for the city.
+   * @param random random to use
+   * @return the gender
+   */
+  public String pickGender(Random random, int age) {
+
+    if (genderAge == null) {
+      // gender by age data is not available
+      // fallback to the default gender distribution
+      return pickGender(random);
+    }
+    // max age bracket is 85+
+    int ageBracketLow = (age / 5) * 5;
+    int ageBracketHigh = ageBracketLow + 4;
+    String ageBracket = (ageBracketLow >= 85)? "85+" : ageBracketLow + "-" + ageBracketHigh;
+
+    // lazy-load in case this randomcollection isn't necessary
+    if (genderAgeDistribution == null) {
+      genderAgeDistribution = buildRandomCollectionMapFromMap(genderAge);
+    }
+
+    /*
+     * Sample Gender frequency: "gender": { "male": 0.47638487773697935, "female":
+     * 0.5236151222630206 },
+     */
+    return genderAgeDistribution.get(ageBracket).next(random);
   }
 
   /**
@@ -521,6 +552,21 @@ public class Demographics implements Comparable<Demographics>, Serializable {
       distribution.add(e.getValue(), e.getKey());
     }
     return distribution;
+  }
+
+  /**
+   * Helper function to convert a map of frequencies map into a map of RandomCollection.
+   */
+  private static Map<String, RandomCollection<String>> buildRandomCollectionMapFromMap(Map<String, Map<String, Double>> map) {
+    Map<String, RandomCollection<String>> distributionMap = new HashMap<>();
+    for (Map.Entry<String, Map<String, Double>> e : map.entrySet()) {
+      RandomCollection<String> distribution = new RandomCollection<>();
+      for (Map.Entry<String, Double> e2 : e.getValue().entrySet()) {
+        distribution.add(e2.getValue(), e2.getKey());
+      }
+      distributionMap.put(e.getKey(), distribution);
+    }
+    return distributionMap;
   }
 
   @Override

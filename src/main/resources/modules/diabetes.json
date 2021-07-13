@@ -1,0 +1,419 @@
+{
+  "name": "Diabetes",
+  "remarks": [],
+  "states": {
+    "Initial": {
+      "type": "Initial",
+      "direct_transition": "Initial_Kidney_Health",
+      "name": "Initial"
+    },
+    "Initial_Kidney_Health": {
+      "type": "SetAttribute",
+      "attribute": "ckd",
+      "value": 0,
+      "direct_transition": "Initial_Eye_Health",
+      "name": "Initial_Kidney_Health"
+    },
+    "Initial_Eye_Health": {
+      "type": "SetAttribute",
+      "attribute": "diabetic_eye_damage",
+      "value": 0,
+      "direct_transition": "Initial_Nerve_Health",
+      "name": "Initial_Eye_Health"
+    },
+    "Initial_Nerve_Health": {
+      "type": "SetAttribute",
+      "attribute": "diabetic_nerve_damage",
+      "value": 0,
+      "direct_transition": "Age_Guard",
+      "name": "Initial_Nerve_Health"
+    },
+    "Age_Guard": {
+      "type": "Guard",
+      "allow": {
+        "condition_type": "Age",
+        "operator": ">=",
+        "quantity": 18,
+        "unit": "years"
+      },
+      "direct_transition": "Chance_to_Onset_Hypertension",
+      "name": "Age_Guard"
+    },
+    "Chance_to_Onset_Hypertension": {
+      "type": "Simple",
+      "remarks": [
+        "probability: 0.296 # (1.0==100%) http://www.cdc.gov/MMWr/preview/mmwrhtml/su6203a24.htm#Tab"
+      ],
+      "conditional_transition": [
+        {
+          "transition": "Veteran",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "veteran",
+            "operator": "is not nil"
+          }
+        },
+        {
+          "transition": "Non_Veteran",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "veteran",
+            "operator": "is nil"
+          }
+        }
+      ],
+      "name": "Chance_to_Onset_Hypertension"
+    },
+    "Onset_Hypertension": {
+      "type": "SetAttribute",
+      "attribute": "hypertension",
+      "value": true,
+      "conditional_transition": [
+        {
+          "transition": "Non_Veteran_Diabetes_Prevalence",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "veteran",
+            "operator": "is nil"
+          }
+        },
+        {
+          "transition": "Veteran_Diabetes_Prevalence",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "veteran",
+            "operator": "is not nil"
+          }
+        }
+      ],
+      "name": "Onset_Hypertension"
+    },
+    "No_Hypertension": {
+      "type": "SetAttribute",
+      "attribute": "hypertension",
+      "value": false,
+      "conditional_transition": [
+        {
+          "transition": "Non_Veteran_Diabetes_Prevalence",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "veteran",
+            "operator": "is nil"
+          }
+        },
+        {
+          "transition": "Veteran_Diabetes_Prevalence",
+          "condition": {
+            "condition_type": "Attribute",
+            "attribute": "veteran",
+            "operator": "is not nil",
+            "value": 0
+          }
+        }
+      ],
+      "name": "No_Hypertension"
+    },
+    "Eventual_Prediabetes": {
+      "type": "Delay",
+      "range": {
+        "low": 0,
+        "high": 37,
+        "unit": "years"
+      },
+      "remarks": [
+        "we assume that diabetes and prediabetes generally onset between the ages of 18-55"
+      ],
+      "direct_transition": "Onset_Prediabetes",
+      "name": "Eventual_Prediabetes"
+    },
+    "Eventual_Diabetes": {
+      "type": "Delay",
+      "range": {
+        "low": 0,
+        "high": 30,
+        "unit": "years"
+      },
+      "remarks": [
+        "we assume that diabetes and prediabetes generally onset between the ages of 18-55",
+        "this tracks a little lower so that we can diagnose prediabetes early and then diabetes later",
+        "there is little info on how many patients with prediabetes progress to diabetes",
+        "so we assume that 38% of patients with diabetes had a prediabetes diagnosis"
+      ],
+      "distributed_transition": [
+        {
+          "distribution": 0.38,
+          "transition": "Onset_Prediabetes_Towards_Diabetes"
+        },
+        {
+          "distribution": 0.62,
+          "transition": "Delay_before_Diabetes"
+        }
+      ],
+      "name": "Eventual_Diabetes"
+    },
+    "Onset_Prediabetes": {
+      "type": "SetAttribute",
+      "attribute": "prediabetes",
+      "value": true,
+      "direct_transition": "No_Diabetes",
+      "name": "Onset_Prediabetes"
+    },
+    "No_Diabetes": {
+      "type": "Terminal",
+      "name": "No_Diabetes"
+    },
+    "Onset_Prediabetes_Towards_Diabetes": {
+      "type": "SetAttribute",
+      "attribute": "prediabetes",
+      "value": true,
+      "direct_transition": "Delay_before_Diabetes",
+      "name": "Onset_Prediabetes_Towards_Diabetes"
+    },
+    "Delay_before_Diabetes": {
+      "type": "Delay",
+      "range": {
+        "low": 0,
+        "high": 7,
+        "unit": "years"
+      },
+      "remarks": [
+        "we assume that diabetes and prediabetes generally onset between the ages of 18-55",
+        "at this point we are between 18-48, so we wait 0-7 years"
+      ],
+      "direct_transition": "Onset_Diabetes",
+      "name": "Delay_before_Diabetes"
+    },
+    "Onset_Diabetes": {
+      "type": "SetAttribute",
+      "attribute": "diabetes",
+      "value": true,
+      "direct_transition": "Has_Diabetes",
+      "name": "Onset_Diabetes"
+    },
+    "Has_Diabetes": {
+      "type": "Terminal",
+      "name": "Has_Diabetes"
+    },
+    "Veteran": {
+      "type": "Simple",
+      "distributed_transition": [
+        {
+          "transition": "Onset_Hypertension",
+          "distribution": 0.306
+        },
+        {
+          "transition": "No_Hypertension",
+          "distribution": 0.694
+        }
+      ],
+      "name": "Veteran"
+    },
+    "Non_Veteran": {
+      "type": "Simple",
+      "distributed_transition": [
+        {
+          "transition": "Onset_Hypertension",
+          "distribution": 0.296
+        },
+        {
+          "transition": "No_Hypertension",
+          "distribution": 0.704
+        }
+      ],
+      "name": "Non_Veteran"
+    },
+    "Non_Veteran_Diabetes_Prevalence": {
+      "type": "Simple",
+      "remarks": [
+        "diabetes prevalence %s based on the following",
+        "http://www.mass.gov/eohhs/gov/departments/dph/programs/community-health/diabetes/facts/diabetes-statistics.html",
+        "prediabetes prevalence is ~38 % overall and similar among most races but slightly lower among Native americans",
+        "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3830901/",
+        "http://www.diabetes.org/living-with-diabetes/treatment-and-care/high-risk-populations/treatment-american-indians.html",
+        "It is estimated that 27.8% of people with diabetes are undiagnosed",
+        "https://www.cdc.gov/diabetes/pdfs/data/2014-report-estimates-of-diabetes-and-its-burden-in-the-united-states.pdf",
+        "therefore the diabetes %s are all scaled up by a factor of 1.278, ",
+        "so that the total % of people that eventually get diabetes is higher, but the current population with diabetes should be around 8.8%",
+        "because there is a delay before diabetes onsets",
+        "similarly the prediabetes #s are scaled up (but by a little less) so the current prediabetic % at any time is ~38%"
+      ],
+      "complex_transition": [
+        {
+          "condition": {
+            "condition_type": "Race",
+            "race": "White"
+          },
+          "distributions": [
+            {
+              "distribution": 0.083,
+              "transition": "Eventual_Diabetes",
+              "remarks": [
+                "0.065 * 1.278"
+              ]
+            },
+            {
+              "distribution": 0.45,
+              "transition": "Eventual_Prediabetes",
+              "remarks": [
+                "0.38 * 1.2"
+              ]
+            },
+            {
+              "distribution": 0.467,
+              "transition": "No_Diabetes"
+            }
+          ]
+        },
+        {
+          "condition": {
+            "condition_type": "Race",
+            "race": "Hispanic"
+          },
+          "distributions": [
+            {
+              "distribution": 0.1815,
+              "transition": "Eventual_Diabetes",
+              "remarks": [
+                "0.142 * 1.278"
+              ]
+            },
+            {
+              "distribution": 0.45,
+              "transition": "Eventual_Prediabetes",
+              "remarks": [
+                "0.38 * 1.2"
+              ]
+            },
+            {
+              "distribution": 0.3685,
+              "transition": "No_Diabetes"
+            }
+          ]
+        },
+        {
+          "condition": {
+            "condition_type": "Race",
+            "race": "Black"
+          },
+          "distributions": [
+            {
+              "distribution": 0.1636,
+              "transition": "Eventual_Diabetes",
+              "remarks": [
+                "0.128 * 1.278"
+              ]
+            },
+            {
+              "distribution": 0.45,
+              "transition": "Eventual_Prediabetes",
+              "remarks": [
+                "0.38 * 1.2"
+              ]
+            },
+            {
+              "distribution": 0.3864,
+              "transition": "No_Diabetes"
+            }
+          ]
+        },
+        {
+          "condition": {
+            "condition_type": "Race",
+            "race": "Asian"
+          },
+          "distributions": [
+            {
+              "distribution": 0.2045,
+              "transition": "Eventual_Diabetes",
+              "remarks": [
+                "0.16 * 1.278"
+              ]
+            },
+            {
+              "distribution": 0.45,
+              "transition": "Eventual_Prediabetes",
+              "remarks": [
+                "0.38 * 1.2"
+              ]
+            },
+            {
+              "distribution": 0.3455,
+              "transition": "No_Diabetes"
+            }
+          ]
+        },
+        {
+          "condition": {
+            "condition_type": "Race",
+            "race": "Native"
+          },
+          "distributions": [
+            {
+              "distribution": 0.1828,
+              "transition": "Eventual_Diabetes",
+              "remarks": [
+                "0.143 * 1.278"
+              ]
+            },
+            {
+              "distribution": 0.36,
+              "transition": "Eventual_Prediabetes",
+              "remarks": [
+                "0.30 * 1.2"
+              ]
+            },
+            {
+              "distribution": 0.4572,
+              "transition": "No_Diabetes"
+            }
+          ]
+        },
+        {
+          "remarks": [
+            "for Other races, just fall back to overall state %s"
+          ],
+          "distributions": [
+            {
+              "distribution": 0.1022,
+              "transition": "Eventual_Diabetes",
+              "remarks": [
+                "0.08 * 1.278"
+              ]
+            },
+            {
+              "distribution": 0.45,
+              "transition": "Eventual_Prediabetes",
+              "remarks": [
+                "0.38 * 1.2"
+              ]
+            },
+            {
+              "distribution": 0.4478,
+              "transition": "No_Diabetes"
+            }
+          ]
+        }
+      ],
+      "name": "Non_Veteran_Diabetes_Prevalence"
+    },
+    "Veteran_Diabetes_Prevalence": {
+      "type": "Simple",
+      "distributed_transition": [
+        {
+          "transition": "Eventual_Diabetes",
+          "distribution": 0.25
+        },
+        {
+          "transition": "Eventual_Prediabetes",
+          "distribution": 0.45
+        },
+        {
+          "transition": "No_Diabetes",
+          "distribution": 0.3
+        }
+      ],
+      "name": "Veteran_Diabetes_Prevalence"
+    }
+  },
+  "gmf_version": 1
+}

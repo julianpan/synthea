@@ -44,6 +44,9 @@ public class Location implements Serializable {
   /** Map of County Name to attributes and probabilities. */
   private Map<String, Map<String, Double>> socialDeterminantsOfHealth;
 
+  /** Map of Country Name to age bucket to gender to probability */
+  private Map<String, Map<String, Map<String, Double>>> sexAgeByCounty;
+
   /**
    * Location is a set of demographic and place information.
    * @param state The full name of the state.
@@ -52,12 +55,45 @@ public class Location implements Serializable {
    *     e.g. "Columbus" or null for an entire state.
    */
   public Location(String state, String city) {
+    String filename = null;
+    // load gender by age table
+    sexAgeByCounty = new HashMap<>();
+    try {
+      filename = Config.get("generate.geography.sex_age.default_file");
+      String csv = Utilities.readResource(filename);
+
+      List<? extends Map<String,String>> sexAgeCsv = SimpleCSV.parse(csv);
+
+      for (Map<String,String> line : sexAgeCsv) {
+        String lineState = line.remove("STATE");
+        if (!lineState.equalsIgnoreCase(state)) {
+          continue;
+        }
+        line.remove("FIPS_CODE");
+        line.remove("COUNTY_CODE");
+        String county = line.remove("COUNTY");
+
+        Map<String, Map<String, Double>> ageGender = new HashMap<>();
+        for (String attribute : line.keySet()) {
+          Double male_probability = Double.parseDouble(line.get(attribute));
+          Map<String, Double> probability = new HashMap<>();
+          probability.put("male", male_probability);
+          probability.put("female", 1 - male_probability);
+          ageGender.put(attribute, probability);
+        }
+        sexAgeByCounty.put(county, ageGender);
+      }
+    } catch (Exception e) {
+      System.err.println("WARNING: unable to load gender by age csv: " + filename);
+      e.printStackTrace();
+    }
+
     try {
       this.city = city;
       this.state = state;
       
       Table<String,String,Demographics> allDemographics = Demographics.load(state);
-      
+
       // this still works even if only 1 city given,
       // because allDemographics will only contain that 1 city
       // we copy the Map returned by the Google Table.row since the implementing
@@ -79,6 +115,11 @@ public class Location implements Serializable {
           new ArrayList<Demographics>(this.demographics.values());
       Collections.sort(sortedDemographics);
       for (Demographics d : sortedDemographics) {
+        // assign gender by age table if exists
+        if(sexAgeByCounty.containsKey(d.county)) {
+          d.genderAge = sexAgeByCounty.get(d.county);
+        }
+
         long pop = d.population;
         runningPopulation += pop;
         if (populationByCity.containsKey(d.city)) {
@@ -96,7 +137,6 @@ public class Location implements Serializable {
       throw new ExceptionInInitializerError(e);
     }
 
-    String filename = null;
     try {
       filename = Config.get("generate.geography.zipcodes.default_file");
       String csv = Utilities.readResource(filename);
@@ -143,7 +183,6 @@ public class Location implements Serializable {
           Double probability = Double.parseDouble(line.get(attribute));
           sdoh.put(attribute.toLowerCase(), probability);
         }
-
         socialDeterminantsOfHealth.put(county, sdoh);
       }
     } catch (Exception e) {

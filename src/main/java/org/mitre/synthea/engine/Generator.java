@@ -747,20 +747,6 @@ public class Generator implements RandomNumberGenerator {
     String language = city.languageFromRaceAndEthnicity(race, ethnicity, random);
     demographicsOutput.put(Person.FIRST_LANGUAGE, language);
 
-    // Generate the person's gender based on their location.
-    String gender;
-    if (options.gender != null) {
-      gender = options.gender;
-    } else {
-      gender = city.pickGender(random);
-      if (gender.equalsIgnoreCase("male") || gender.equalsIgnoreCase("M")) {
-        gender = "M";
-      } else {
-        gender = "F";
-      }
-    }
-    demographicsOutput.put(Person.GENDER, gender);
-
     // Pick the person's socioeconomic variables of education/income/occupation based on location.
     String education = city.pickEducation(random);
     demographicsOutput.put(Person.EDUCATION, education);
@@ -794,6 +780,20 @@ public class Generator implements RandomNumberGenerator {
       targetAge = city.pickAge(random);
     }
     demographicsOutput.put(TARGET_AGE, targetAge);
+
+    // Generate the person's gender based on their location.
+    String gender;
+    if (options.gender != null) {
+      gender = options.gender;
+    } else {
+      gender = city.pickGender(random, targetAge);
+      if (gender.equalsIgnoreCase("male") || gender.equalsIgnoreCase("M")) {
+        gender = "M";
+      } else {
+        gender = "F";
+      }
+    }
+    demographicsOutput.put(Person.GENDER, gender);
 
     long birthdate = birthdateFromTargetAge(targetAge, random);
     demographicsOutput.put(Person.BIRTHDATE, birthdate);
